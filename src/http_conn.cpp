@@ -33,7 +33,7 @@ BOOL start_webdriver() {
 /*
  *  Small demo demonstrating my extreme lack of HTTP prowess.
  */
-int main() {
+int http_main() {
   int status = start_webdriver();
   int clisock;
   struct addrinfo *result = 0, *p = 0, hints;
