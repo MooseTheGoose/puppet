@@ -1,0 +1,6 @@
+G:\puppet\Debug\puppet.vcxproj.CopyComplete
+G:\puppet\Debug\puppet.exe
+G:\puppet\Debug\puppet.pdb
+G:\puppet\Debug\libcurl-d.dll
+G:\puppet\Debug\zlibd1.dll
+G:\puppet\Debug\mpir.dll
