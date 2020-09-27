@@ -1,5 +1,5 @@
-#ifndef PUPPET_TYPES_H
-#define PUPPET_TYEPS_H
+#ifndef PUPPET_TYPES_HPP
+#define PUPPET_TYPES_HPP
 
 #include <stdint.h>
 #include <mpir.h>
@@ -73,14 +73,14 @@ struct PuppetData {
 struct PuppetProcess {
   int pid;
 
-  PuppetProcess(char* cmd_line);
+  PuppetProcess(const char* cmd_line);
 };
 
 struct PuppetPipedProcess {
   int pid;
   vector<char> output;
 
-  PuppetPipedProcess(char* cmd_line);
+  PuppetPipedProcess(const char* cmd_line);
 };
 
 

@@ -1,7 +1,9 @@
 #include "puppet_types.hpp"
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <windows.h>
+#elif defined(__MACH__)
+#include <unistd.h>
 #endif
 
 const string PUPPET_LINE_SEP = "\n";
@@ -74,10 +76,12 @@ string PuppetData::to_string() {
   return rep;
 }
 
-PuppetProcess::PuppetProcess(char *cmd_line) {
+PuppetProcess::PuppetProcess(const char *cmd) {
   this->pid = -1;  
+  char *cmd_line = new char[strlen(cmd) + 1];
+  strcpy(cmd_line, cmd);
 
-  #ifdef _WIN32
+  #if defined(_WIN32)
   STARTUPINFO si;
   PROCESS_INFORMATION pi;
 
@@ -90,13 +94,48 @@ PuppetProcess::PuppetProcess(char *cmd_line) {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
   }
+  #elif defined(__MACH__)
+  vector<char *> argv = vector<char *>();
+  char *iter = cmd_line;
+
+  while(*iter) {
+     while(isspace(*iter)) {
+       iter++;
+     }
+     if(*iter) {
+       argv.push_back(iter);
+       while(!isspace(*iter) && *iter) {
+         iter++;
+       }
+       if(*iter) {
+         *iter++ = 0;
+       }
+     }  
+  }
+  argv.push_back(0);
+
+  if(argv.size() > 1) {
+    int pid = fork();
+    if(!pid) {
+      int status = execvp(argv[0], argv.data());
+      if(status == -1) {
+        exit(-1);
+      }
+    } else if(pid > 0) {
+      this->pid = pid;
+    }
+  }
   #endif
+
+  delete[] cmd_line;
 }
 
-PuppetPipedProcess::PuppetPipedProcess(char *cmd_line) {
+PuppetPipedProcess::PuppetPipedProcess(const char *cmd) {
   this->pid = -1;
+  char *cmd_line = new char[strlen(cmd) + 1];
+  strcpy(cmd_line, cmd);
 
-  #ifdef _WIN32
+  #if defined(_WIN32)
   STARTUPINFO si;
   PROCESS_INFORMATION pi;
   SECURITY_ATTRIBUTES sa;
@@ -144,5 +183,64 @@ PuppetPipedProcess::PuppetPipedProcess(char *cmd_line) {
 
     CloseHandle(read_end);
   }
+  #elif defined(__MACH__)
+  vector<char *> argv = vector<char *>();
+  char *iter = cmd_line;
+
+  while(*iter) {
+    while(isspace(*iter)) {
+      iter++;
+    }
+    if(*iter) {
+      argv.push_back(iter);
+      while(!isspace(*iter) && *iter) {
+        iter++;
+      }
+      if(*iter) {
+        *iter++ = 0;
+      }
+    }
+  }
+  argv.push_back(0);
+
+  if(argv.size() > 1) {
+    int pipefds[2];
+     
+    if(!pipe(pipefds)) {
+      int pid = fork();
+
+      if(!pid) {
+        close(pipefds[0]);
+        close(1);
+        dup(pipefds[1]);
+        close(pipefds[1]);
+        int status = execvp(argv[0], argv.data());
+        if(!status) {
+          exit(-1);
+        }
+      } else if(pid > 0) {
+        close(pipefds[1]);
+        int read_end = pipefds[0];
+        const int BUF_SZ = 9192;
+        char buffer[BUF_SZ];
+        vector<char> out = vector<char>();
+        int nbytes = read(read_end, buffer, BUF_SZ);
+        
+        while(nbytes > 0) {
+          for(int i = 0; i < BUF_SZ; i++) {
+            out.push_back(buffer[i]);
+          }
+          nbytes = read(read_end, buffer, BUF_SZ);
+        }
+
+        if(!nbytes) {
+          this->pid = pid;
+          this->output = out;
+        }
+      }
+    }
+  }
   #endif
+
+  delete[] cmd_line;
 }
