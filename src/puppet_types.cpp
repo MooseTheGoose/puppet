@@ -1,9 +1,17 @@
 #include "puppet_types.hpp"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 const string PUPPET_LINE_SEP = "\n";
 
 string PuppetBigInt::to_string() {
-  return std::to_string(this->num);
+  char *buffer = mpz_get_str(0, 10, this->bignum);
+  string s = buffer;
+  free(buffer);
+   
+  return s;
 }
 
 string PuppetFloat::to_string() {
@@ -64,4 +72,77 @@ string PuppetData::to_string() {
   }
 
   return rep;
+}
+
+PuppetProcess::PuppetProcess(char *cmd_line) {
+  this->pid = -1;  
+
+  #ifdef _WIN32
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+
+  ZeroMemory(&si, sizeof(si));
+  si.cb = sizeof(si);
+  ZeroMemory(&pi, sizeof(pi));
+
+  if(CreateProcess(0, cmd_line, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
+    this->pid = pi.dwProcessId;
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+  }
+  #endif
+}
+
+PuppetPipedProcess::PuppetPipedProcess(char *cmd_line) {
+  this->pid = -1;
+
+  #ifdef _WIN32
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+  SECURITY_ATTRIBUTES sa;
+  HANDLE read_end, write_end;
+
+  ZeroMemory(&si, sizeof(si));
+  si.cb = sizeof(si);
+  ZeroMemory(&pi, sizeof(pi));
+  ZeroMemory(&sa, sizeof(sa));
+  sa.nLength = sizeof(sa);
+  sa.lpSecurityDescriptor = 0;
+  sa.bInheritHandle = TRUE;
+
+  if(CreatePipe(&read_end, &write_end, &sa, 0)) {
+    si.hStdError = write_end;
+    si.hStdOutput = write_end;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    SetHandleInformation(read_end, HANDLE_FLAG_INHERIT, 0);
+
+    if(CreateProcess(0, cmd_line, 0, 0, TRUE, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
+      CloseHandle(pi.hProcess);
+      CloseHandle(pi.hThread);
+      CloseHandle(write_end);
+      this->pid = pi.dwProcessId;
+
+      DWORD nbytes = 1;
+      vector<char> child_out = vector<char>();
+
+      while(nbytes) {
+        const int BUF_SZ = 9192;
+        char buffer[BUF_SZ];
+
+        if(!ReadFile(read_end, buffer, BUF_SZ, &nbytes, 0) && GetLastError() != ERROR_BROKEN_PIPE) {
+          this->pid = -1;
+          break;
+        } else {
+          for(int i = 0; i < nbytes; i++) {
+            child_out.push_back(buffer[i]);
+          }
+        }
+      }
+      this->output = child_out;
+    }
+
+    CloseHandle(read_end);
+  }
+  #endif
 }

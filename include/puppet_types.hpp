@@ -2,10 +2,16 @@
 #define PUPPET_TYEPS_H
 
 #include <stdint.h>
+#include <mpir.h>
+
 #include <vector>
 #include <string>
 using std::string;
 using std::vector;
+
+/*
+ *  Basic data types in Puppet. 
+ */
 
 enum PUPPET_TYPES {
   TYPE_BIGINT, TYPE_FLOAT, TYPE_STRING,
@@ -15,8 +21,7 @@ enum PUPPET_TYPES {
 struct PuppetData;
 
 struct PuppetBigInt {
-  /* Fill in eventually with an actual big integer... */
-  int num;
+  mpz_t bignum;
 
   string to_string();
 };
@@ -58,6 +63,31 @@ struct PuppetData {
 
   string to_string();
 };
+
+/*
+ *  Types for OS-specific things 
+ *  like processes and pipes that
+ *  Puppet needs.
+ */
+
+struct PuppetProcess {
+  int pid;
+
+  PuppetProcess(char* cmd_line);
+};
+
+struct PuppetPipedProcess {
+  int pid;
+  vector<char> output;
+
+  PuppetPipedProcess(char* cmd_line);
+};
+
+
+/*
+ *  Data types & functions for 
+ *  lexer & parser in Puppet
+ */
 
 typedef int32_t unichar_t;
 extern const string PUPPET_LINE_SEP;
