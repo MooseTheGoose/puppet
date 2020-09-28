@@ -8,7 +8,7 @@
 using std::string;
 using std::vector;
 
-enum TOKEN_TYPE {
+enum PUPPET_TOKEN_TYPE {
   TOK_OBJ, TOK_BIGINT, TOK_FLOAT, 
   TOK_STRING, TOK_IDENTIFIER, 
   TOK_KEYWORD, TOK_LBRACKET, TOK_RBRACKET,

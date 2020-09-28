@@ -9,6 +9,10 @@
 using std::string;
 using std::vector;
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 /*
  *  Basic data types in Puppet. 
  */
@@ -67,22 +71,40 @@ struct PuppetData {
 /*
  *  Types for OS-specific things 
  *  like processes and pipes that
- *  Puppet needs.
+ *  Puppet needs. Certainly not for
+ *  general use, but suits Puppet's needs
+ *  just fine.
  */
 
+/*
+ *  Represents background processes which
+ *  runs paralell to this process.
+ */
 struct PuppetProcess {
   int pid;
 
+  #if defined(_WIN32)
+  HANDLE hproc;
+  #endif
+
   int init(const char *cmd_line);
-  int quit();
+  void wait();
+  int murder();
 };
 
+/*
+ *  Piped process which captures stdout & stderr and waits
+ *  until that is done.
+ */
 struct PuppetPipedProcess {
-  int pid;
-  vector<char> output;
+  PuppetProcess process;
+  const char *output;
+  size_t len;
 
   int init(const char *cmd_line);
-  int quit();
+  void wait();
+  int murder();
+  void free_output();
 };
 
 /*

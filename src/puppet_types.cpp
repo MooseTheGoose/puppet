@@ -7,6 +7,9 @@
 /* UNIX-like defines */
 #else
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
 #endif
 
 const string PUPPET_LINE_SEP = "\n";
@@ -87,7 +90,7 @@ string PuppetData::to_string() {
  */
 
 int PuppetProcess::init(const char *cmd) {
-  this->pid = -1;  
+  this->pid = -1;
   char *cmd_line = new char[strlen(cmd) + 1];
   for(size_t i = 0; cmd_line[i] = cmd[i]; i++) {}
 
@@ -95,13 +98,14 @@ int PuppetProcess::init(const char *cmd) {
   STARTUPINFO si;
   PROCESS_INFORMATION pi;
 
+  this->hproc = 0;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
   ZeroMemory(&pi, sizeof(pi));
 
   if(CreateProcess(0, cmd_line, 0, 0, 0, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
     this->pid = pi.dwProcessId;
-    CloseHandle(pi.hProcess);
+    this->hproc = pi.hProcess;
     CloseHandle(pi.hThread);
   }
   #else
@@ -142,8 +146,10 @@ int PuppetProcess::init(const char *cmd) {
 }
 
 int PuppetPipedProcess::init(const char *cmd) {
-  this->pid = -1;
-  this->output = vector<char>();
+  this->process.pid = -1;
+  this->output = 0;
+  this->len = 0; 
+  vector<char> child_out = vector<char>();
   char *cmd_line = new char[strlen(cmd) + 1];
   for(size_t i = 0; cmd_line[i] = cmd[i]; i++) {}
 
@@ -153,6 +159,7 @@ int PuppetPipedProcess::init(const char *cmd) {
   SECURITY_ATTRIBUTES sa;
   HANDLE read_end, write_end;
 
+  this->process.hproc = 0;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
   ZeroMemory(&pi, sizeof(pi));
@@ -169,20 +176,20 @@ int PuppetPipedProcess::init(const char *cmd) {
     SetHandleInformation(read_end, HANDLE_FLAG_INHERIT, 0);
 
     if(CreateProcess(0, cmd_line, 0, 0, TRUE, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
-      CloseHandle(pi.hProcess);
       CloseHandle(pi.hThread);
       CloseHandle(write_end);
-      this->pid = pi.dwProcessId;
+      this->process.pid = pi.dwProcessId;
+      this->process.hproc = pi.hProcess;
 
       DWORD nbytes = 1;
-      vector<char> child_out = vector<char>();
 
       while(nbytes) {
         const int BUF_SZ = 9192;
         char buffer[BUF_SZ];
 
         if(!ReadFile(read_end, buffer, BUF_SZ, &nbytes, 0) && GetLastError() != ERROR_BROKEN_PIPE) {
-          this->pid = -1;
+          this->process.pid = -1;
+          CloseHandle(this->process.hproc);
           break;
         } else {
           for(DWORD i = 0; i < nbytes; i++) {
@@ -190,7 +197,17 @@ int PuppetPipedProcess::init(const char *cmd) {
           }
         }
       }
-      this->output = child_out;
+      if(this->process.pid > 0) {
+        char *temp_output = new char[child_out.size() + 1];
+        for(size_t i = 0; i < child_out.size(); i++) {
+          temp_output[i] = child_out[i];
+        }
+        temp_output[child_out.size()] = 0;
+        this->output = temp_output;
+        this->len = child_out.size();
+      }
+    } else {
+      CloseHandle(write_end);
     }
 
     CloseHandle(read_end);
@@ -235,50 +252,94 @@ int PuppetPipedProcess::init(const char *cmd) {
         int read_end = pipefds[0];
         const int BUF_SZ = 9192;
         char buffer[BUF_SZ];
-        vector<char> out = vector<char>();
         int nbytes = read(read_end, buffer, BUF_SZ);
         
         while(nbytes > 0) {
           for(int i = 0; i < BUF_SZ; i++) {
-            out.push_back(buffer[i]);
+            child_out.push_back(buffer[i]);
           }
           nbytes = read(read_end, buffer, BUF_SZ);
         }
 
         if(!nbytes) {
-          this->pid = pid;
-          this->output = out;
+          char *temp_output = new char[child_out.size() + 1];
+          for(int i = 0; i < child_out.size(); i++) {
+            temp_output[i] = child_out[i];
+          }
+          temp_output[child_out.size()] = 0;
+          this->process.pid = pid;
+          this->output = temp_output;
+          this->len = child_out.size();
         }
+        close(read_end);
       }
     }
   }
   #endif
 
   delete[] cmd_line;
-  return this->pid;
+  return this->process.pid;
 }
 
-static int close_pid(int pid) {
+int PuppetProcess::murder() {
   int status = -1;
-
-  if(pid > 0) {
+  if(this->pid > 0) {
     #if defined(_WIN32)
-    HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, pid);
-  
-    if(proc && TerminateProcess(proc, 2)) {
+    HANDLE term_handle = OpenProcess(PROCESS_TERMINATE, 0, this->pid);
+
+    if(term_handle) {
+      if(TerminateProcess(term_handle, 0xFFFF)) {
+        CloseHandle(this->hproc);
+        this->pid = -1;
+        this->hproc = 0;
+        status = 0;
+      }
+      CloseHandle(term_handle);
+    }
+    #else
+    if(!kill(this->pid, SIGKILL)) {
+      waitpid(this->pid, 0, 0);
+      this->pid = -1;
       status = 0;
     }
     #endif
   }
-
   return status;
 }
 
-int PuppetProcess::quit() {
-  return close_pid(this->pid);
+int PuppetPipedProcess::murder() {
+  return this->process.murder();
 }
 
-int PuppetPipedProcess::quit() {
-  return close_pid(this->pid);
+void PuppetProcess::wait() {
+  if(this->pid > 0) {
+    #if defined(_WIN32)
+    HANDLE query_handle = OpenProcess(PROCESS_QUERY_INFORMATION, 0, this->pid);
+    DWORD status = STILL_ACTIVE;
+    while(status == STILL_ACTIVE) {
+      WaitForSingleObject(query_handle, INFINITE);
+      GetExitCodeProcess(query_handle, &status);
+    }
+    CloseHandle(query_handle);
+    CloseHandle(this->hproc);
+    this->hproc = 0;
+    #else
+    waitpid(this->pid, 0, 0);
+    #endif
+
+    this->pid = -1;
+  }
+}
+
+void PuppetPipedProcess::wait() {
+  this->process.wait();
+}
+
+void PuppetPipedProcess::free_output() {
+  if (this->output) {
+    delete[] this->output;
+    this->output = 0;
+    this->len = 0;
+  }
 }
 
