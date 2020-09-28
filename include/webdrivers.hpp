@@ -4,16 +4,18 @@
 #include <string>
 #include <vector>
 #include <curl/curl.h>
+#include "puppet_types.hpp"
 
 using std::string;
 using std::vector;
 
-class GeckoPuppet {
+struct GeckoPuppet {
   CURL *session;
+  const char *local_addr;
+  PuppetProcess driver;
 
-  public:
-    GeckoPuppet();
-    static int GeckoDriver();
+  int init();
+  int quit();
 };
 
 #endif

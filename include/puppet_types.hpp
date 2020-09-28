@@ -73,16 +73,17 @@ struct PuppetData {
 struct PuppetProcess {
   int pid;
 
-  PuppetProcess(const char* cmd_line);
+  int init(const char *cmd_line);
+  int quit();
 };
 
 struct PuppetPipedProcess {
   int pid;
   vector<char> output;
 
-  PuppetPipedProcess(const char* cmd_line);
+  int init(const char *cmd_line);
+  int quit();
 };
-
 
 /*
  *  Data types & functions for 
@@ -92,7 +93,7 @@ struct PuppetPipedProcess {
 typedef int32_t unichar_t;
 extern const string PUPPET_LINE_SEP;
 
-inline int is_prefix(const char *pre, const char *str) {
+static inline int is_prefix(const char *pre, const char *str) {
   while(*str == *pre && *str && *pre) {
     str++;
     pre++;
@@ -100,6 +101,5 @@ inline int is_prefix(const char *pre, const char *str) {
 
   return !*pre;
 }
-
 
 #endif

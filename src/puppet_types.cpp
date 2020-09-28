@@ -1,8 +1,11 @@
 #include "puppet_types.hpp"
 
+/* Windows defines */
 #if defined(_WIN32)
 #include <windows.h>
-#elif defined(__MACH__)
+
+/* UNIX-like defines */
+#else
 #include <unistd.h>
 #endif
 
@@ -27,7 +30,8 @@ string PuppetString::to_string() {
 string PuppetList::to_string() {
   string buf = "[";
 
-  for(PuppetData pd : this->data) {
+  for(size_t i = 0; i < this->data.size(); i++) {
+	PuppetData pd = this->data[i];
     buf += (pd.to_string() + ",");
   }
   if(buf.back() == ',') {
@@ -41,7 +45,7 @@ string PuppetList::to_string() {
 string PuppetObject::to_string() {
   string buf = "{";
 
-  for(int i = 0; i < this->keys.size(); i++) {
+  for(size_t i = 0; i < this->keys.size(); i++) {
     buf += (this->keys[i].to_string() + ":" + this->values[i].to_string() + ",");
   }
   if(buf.back() == ',') {
@@ -76,10 +80,16 @@ string PuppetData::to_string() {
   return rep;
 }
 
-PuppetProcess::PuppetProcess(const char *cmd) {
+/*
+ *  TODO: Command line logic for UNIX-like systems is the
+ *        exact same in PuppetProcess and PuppetPipedProcess.
+ *        Put it in a separate function.
+ */
+
+int PuppetProcess::init(const char *cmd) {
   this->pid = -1;  
   char *cmd_line = new char[strlen(cmd) + 1];
-  strcpy(cmd_line, cmd);
+  for(size_t i = 0; cmd_line[i] = cmd[i]; i++) {}
 
   #if defined(_WIN32)
   STARTUPINFO si;
@@ -94,7 +104,7 @@ PuppetProcess::PuppetProcess(const char *cmd) {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
   }
-  #elif defined(__MACH__)
+  #else
   vector<char *> argv = vector<char *>();
   char *iter = cmd_line;
 
@@ -128,12 +138,14 @@ PuppetProcess::PuppetProcess(const char *cmd) {
   #endif
 
   delete[] cmd_line;
+  return this->pid;
 }
 
-PuppetPipedProcess::PuppetPipedProcess(const char *cmd) {
+int PuppetPipedProcess::init(const char *cmd) {
   this->pid = -1;
+  this->output = vector<char>();
   char *cmd_line = new char[strlen(cmd) + 1];
-  strcpy(cmd_line, cmd);
+  for(size_t i = 0; cmd_line[i] = cmd[i]; i++) {}
 
   #if defined(_WIN32)
   STARTUPINFO si;
@@ -173,7 +185,7 @@ PuppetPipedProcess::PuppetPipedProcess(const char *cmd) {
           this->pid = -1;
           break;
         } else {
-          for(int i = 0; i < nbytes; i++) {
+          for(DWORD i = 0; i < nbytes; i++) {
             child_out.push_back(buffer[i]);
           }
         }
@@ -183,7 +195,7 @@ PuppetPipedProcess::PuppetPipedProcess(const char *cmd) {
 
     CloseHandle(read_end);
   }
-  #elif defined(__MACH__)
+  #else
   vector<char *> argv = vector<char *>();
   char *iter = cmd_line;
 
@@ -243,4 +255,30 @@ PuppetPipedProcess::PuppetPipedProcess(const char *cmd) {
   #endif
 
   delete[] cmd_line;
+  return this->pid;
 }
+
+static int close_pid(int pid) {
+  int status = -1;
+
+  if(pid > 0) {
+    #if defined(_WIN32)
+    HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, pid);
+  
+    if(proc && TerminateProcess(proc, 2)) {
+      status = 0;
+    }
+    #endif
+  }
+
+  return status;
+}
+
+int PuppetProcess::quit() {
+  return close_pid(this->pid);
+}
+
+int PuppetPipedProcess::quit() {
+  return close_pid(this->pid);
+}
+
