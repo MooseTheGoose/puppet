@@ -5,6 +5,14 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#define PUPPET_SLEEP(x) Sleep(x)
+#else
+#include <unistd.h>
+#define PUPPET_SLEEP(x) usleep((x) * 1000)
+#endif
+
 /*
  *  An OS-specific thing which uses some OS utility 
  *  to get the port from the process ID. 
@@ -31,7 +39,7 @@ static const char *local_addr_from_pid(int pid) {
 
   len_sep = strlen(line_sep);
   const char *data = netstat.output;
-  vector<vector<string>> lines = vector<vector<string>>();
+  vector< vector<string> > lines = vector< vector<string> >();
   netstat.wait();
 
   while(*data) {
@@ -99,14 +107,25 @@ int GeckoPuppet::init() {
   PuppetProcess gecko_driver;
   int status = -1;
 
-  gecko_driver.init("C:\\\\Users\\Moose\\Desktop\\cmder\\bin\\geckodriver --port 0");
+  gecko_driver.init("/Users/yoyomoose/bin/chromedriver --port=0");
   if(gecko_driver.pid > 0) {
+    /*
+     *  Fun fact: 
+     *  You have to wait for the server to spin up...
+     *  Sleep for 100 ms to give them the time they need.
+     */
+    PUPPET_SLEEP(100);
+
     const char *gecko_addr = local_addr_from_pid(gecko_driver.pid);
     if(gecko_addr) {
+      printf("HI\r\n");
       this->driver = gecko_driver;
       this->local_addr = gecko_addr;
-      if(this->session = curl_easy_init()) {
+      if((this->session = curl_easy_init())) {
         status = 0;
+      } else {
+        delete[] this->local_addr;
+        this->local_addr = 0;
       }
     }
   }

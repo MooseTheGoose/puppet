@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
 #endif
 
 const string PUPPET_LINE_SEP = "\n";
@@ -92,7 +93,7 @@ string PuppetData::to_string() {
 int PuppetProcess::init(const char *cmd) {
   this->pid = -1;
   char *cmd_line = new char[strlen(cmd) + 1];
-  for(size_t i = 0; cmd_line[i] = cmd[i]; i++) {}
+  for(size_t i = 0; (cmd_line[i] = cmd[i]); i++) {}
 
   #if defined(_WIN32)
   STARTUPINFO si;
@@ -131,6 +132,12 @@ int PuppetProcess::init(const char *cmd) {
   if(argv.size() > 1) {
     int pid = fork();
     if(!pid) {
+      close(1);
+      close(2);
+      int fd = open("/dev/null", O_WRONLY);
+      dup(fd);
+      dup(fd);
+      close(fd);
       int status = execvp(argv[0], argv.data());
       if(status == -1) {
         exit(-1);
@@ -151,7 +158,7 @@ int PuppetPipedProcess::init(const char *cmd) {
   this->len = 0; 
   vector<char> child_out = vector<char>();
   char *cmd_line = new char[strlen(cmd) + 1];
-  for(size_t i = 0; cmd_line[i] = cmd[i]; i++) {}
+  for(size_t i = 0; (cmd_line[i] = cmd[i]); i++) {}
 
   #if defined(_WIN32)
   STARTUPINFO si;
@@ -241,6 +248,8 @@ int PuppetPipedProcess::init(const char *cmd) {
       if(!pid) {
         close(pipefds[0]);
         close(1);
+        close(2);
+        dup(pipefds[1]);
         dup(pipefds[1]);
         close(pipefds[1]);
         int status = execvp(argv[0], argv.data());
@@ -255,7 +264,7 @@ int PuppetPipedProcess::init(const char *cmd) {
         int nbytes = read(read_end, buffer, BUF_SZ);
         
         while(nbytes > 0) {
-          for(int i = 0; i < BUF_SZ; i++) {
+          for(int i = 0; i < nbytes; i++) {
             child_out.push_back(buffer[i]);
           }
           nbytes = read(read_end, buffer, BUF_SZ);
