@@ -15,25 +15,26 @@
 
 /*
  *  An OS-specific thing which uses some OS utility 
- *  to get the port from the process ID. 
- *
- *  TODO: Have Linux and Mac OS use and parse lsof.
+ *  to get the first local address that a process is using. 
  */
-static const char *local_addr_from_pid(int pid) {
+static const char *local_addr_from_process(const PuppetProcess &process) {
   const char *line_sep;
   int len_sep;
   char *local_address = 0;
   PuppetPipedProcess netstat;
 
+
   #if defined(_WIN32)
+  int pid = process.pid;
   netstat.init("netstat -ano -p tcp");
   line_sep = "\n";
   #else
+  int pid = process.pid;
   netstat.init("lsof -nP -iTCP");
   line_sep = "\n";
   #endif
 
-  if(netstat.process.pid <= 0) {
+  if(!netstat.identifiable()) {
 	return 0;
   }
 
@@ -107,8 +108,8 @@ int GeckoPuppet::init() {
   PuppetProcess gecko_driver;
   int status = -1;
 
-  gecko_driver.init("/Users/yoyomoose/bin/chromedriver --port=0");
-  if(gecko_driver.pid > 0) {
+  gecko_driver.init("geckodriver --port=0");
+  if(gecko_driver.identifiable()) {
     /*
      *  Fun fact: 
      *  You have to wait for the server to spin up...
@@ -116,9 +117,8 @@ int GeckoPuppet::init() {
      */
     PUPPET_SLEEP(100);
 
-    const char *gecko_addr = local_addr_from_pid(gecko_driver.pid);
+    const char *gecko_addr = local_addr_from_process(gecko_driver);
     if(gecko_addr) {
-      printf("HI\r\n");
       this->driver = gecko_driver;
       this->local_addr = gecko_addr;
       if((this->session = curl_easy_init())) {

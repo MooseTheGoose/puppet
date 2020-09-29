@@ -1,0 +1,50 @@
+# Send keys "Hello, World!" to an element "ele"
+SEND "Hello, World" TO ele
+
+# Click on element "ele"
+CLICK ele
+
+# Puppet is case-insensitive, so
+# "CLICK ele", "click ELE", and "ClIcK eLe" do the same thing.
+
+# Get current URL
+GET URL
+
+# Navigate to www.google.com
+GET "www.google.com"
+
+# Find element using CSS selector ".myclass"
+FIND CSS "myclass"
+
+# Find all <p> elements
+FIND ALL TAG "p"
+
+# Execute script which sends an alert
+EXECUTE "alert('Hello, World!');"
+
+# Execute same script, but async
+ASYNC "alert('Hello, World!');"
+
+# Open and close a file for writing.
+fp = OPEN FILE "HelloWorld.txt"
+SEND "Hello, World!" TO fp
+CLOSE fp
+
+# Get all window handles, and output the list to stdout.
+list = GET ALL WINDOW
+SEND list TO out
+
+# Sleep for 2.5 seconds
+SLEEP 2.5
+
+# Get page source
+src = GET SOURCE
+
+# Go back, forward, then refresh
+BACK
+FORWARD
+REFRESH
+
+# Perform and release actions
+PERFORM actions
+CLOSE actions

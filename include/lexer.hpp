@@ -20,16 +20,40 @@ enum TOK_BRACKET_TYPE {
   BRACKET_SQUARE
 };
 
+enum TOK_KEYWORD_TYPE {
+  KW_SEND, KW_KEYS, KW_FIND, KW_GET,
+  KW_ALL, KW_EXECUTE, KW_ASYNC, KW_CLICK,
+  KW_URL, KW_TAG, KW_CSS, KW_ID, KW_XPATH,
+  KW_SLEEP
+};
+
+enum TOK_OPERATOR_TYPE {
+  /* 
+   *  Hold off on this. The order 
+   *  on this enum matters.
+   */
+};
+
+extern const char *PUPPET_KEYWORDS[];
+extern const char *PUPPET_OPERATORS[];
+extern const char *PUPPET_LINE_SEP;
+extern const char *PUPPET_SLCOMMENT;
+extern const char *PUPPET_MLCOMMENT_OPEN;
+extern const char *PUPPET_MLCOMMENT_CLOSE;
+
 struct lexer_token {
   int identifier;
   int lino;
   int chno;
   union {
     int brack_type;
+    int keyword;
+    const char *identifier;
+    mpz_t bigint;
+    double flt;
+    const char *strliteral;
   };
 };
-
-
 
 struct lexer {
   int curr_lino;
@@ -43,6 +67,11 @@ struct lexer {
   unichar_t eatchar();
 
   int lex(const string &source);
+  int lex_stage1();
+  unichar_t lex_slcomment();
+  unichar_t lex_mlcomment();
+  unichar_t lex_number();
+  unichar_t lex_identifier();
 };
 
 

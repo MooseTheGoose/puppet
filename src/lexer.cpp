@@ -1,6 +1,19 @@
 #include "lexer.hpp"
+#include <stdio.h>
+#include <stdlib.h>
 
+/*
+ *  TODO (Maybe): Consider dedicating a lexer method to eating
+ *                escape sequences like \uNNNN and \xNN outside
+ *                and inside of strings after you finish a lexer
+ *                and parser prototype. There are more than several
+ *                compilers doing this.
+ */
 
+const char *PUPPET_LINE_SEP = "\n";
+const char *PUPPET_SLCOMMENT = "//";
+const char *PUPPET_MLCOMMENT_OPEN = "/*";
+const char *PUPPET_MLCOMMENT_CLOSE = "*/";
 
 /*
  *  Peek at the next character using UTF-8
@@ -64,7 +77,7 @@ unichar_t lexer::peekchar() {
 unichar_t lexer::eatchar() {
   unichar_t peek = this->peekchar();
 
-  if(peek >= 0 && is_prefix(PUPPET_LINE_SEP.data(), this->data + this->index)) {
+  if(peek >= 0 && is_prefix(PUPPET_LINE_SEP, this->data + this->index)) {
     lexer_token nltok;
     nltok.identifier = TOK_NL;
     nltok.lino = this->curr_lino;
@@ -88,4 +101,79 @@ unichar_t lexer::eatchar() {
   this->curr_chno++;
 
   return peek;
+}
+
+unichar_t lexer::lex_slcomment() {
+  const char *local_data = this->data;
+  unichar_t curr_char;
+
+  this->index += strlen(PUPPET_SLCOMMENT);
+  curr_char = this->peekchar();
+  while(!is_prefix(PUPPET_LINE_SEP, local_data + this->index) && last_char) {
+     this->eatchar();
+     curr_char = this->peekchar();
+  }
+  return curr_char;
+}
+
+unichar_t lexer::lex_mlcomment() {
+  const char *local_data = this->data;
+  unichar_t curr_char;
+  size_t mlcomment_stack = 1;
+
+  this->index += strlen(PUPPET_MLCOMMENT_OPEN);
+  curr_char = this->peekchar();
+  while(mlcomment_stack && last_char) {
+    if(is_prefix(PUPPET_MLCOMMENT_OPEN, local_data + this->index)) {
+      mlcomment_stack++;
+      this->index += strlen(PUPPET_MLCOMMENT_OPEN);
+    } else if(is_prefix(PUPPET_MLCOMMENT_CLOSE, local_data + this->index) {
+      mlcomment_stack--;
+      this->index += strlen(PUPPET_MLCOMMENT_CLOSE);
+    } else {
+      this->eatchar();
+    }
+    curr_char = this->peekchar();
+  }
+  if(mlcomment_stack) {
+    curr_char = -1;
+  }
+  return last_char;  
+}
+
+int lexer::lex_stage1(const string &source) {
+  this->curr_lino = 1;
+  this->curr_chno = 1;
+  this->data = source.data();
+  this->index = 0;
+  this->len = source.size();
+  this->token_queue = vector<lexer_token>();
+
+  unichar_t curr_char = this->peekchar();
+  while(curr_char) {
+    while(puppet_isspace(curr_char) && curr_char) {
+      this->eatchar();
+      curr_char = this->peekchar();
+    }
+
+    if(puppet_isdigit(curr_char)) {
+      /* Derive the number */
+    } else if(puppet_isiden(curr_char)) {
+      /* Derive the identifier and/or keyword. */
+    } else if(curr_char == '"' || curr_char == '\'') {
+      /* Derive the string */
+    } else if(/* Check if prefixed by operator token */) {
+      /* Derive the operator */
+    } else if(is_prefix(PUPPET_SLCOMMENT, this->data + this->index) {
+      curr_char = this->lex_slcomment();
+    } else if(is_prefix(PUPPET_MLCOMMENT_OPEN, this->data + this->index)) {
+      curr_char = this->lex_mlcomment();
+    } else {
+      /* Unrecognizable character */
+      fprintf(stderr, "LEXER ERROR: Invalid token prefix (code: %X)\r\n", curr_char);
+      return -1;
+    }
+  }
+
+  return 0;
 }

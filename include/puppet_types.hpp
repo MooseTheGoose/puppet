@@ -90,6 +90,7 @@ struct PuppetProcess {
   int init(const char *cmd_line);
   void wait();
   int murder();
+  int identifiable();
 };
 
 /*
@@ -104,6 +105,7 @@ struct PuppetPipedProcess {
   int init(const char *cmd_line);
   void wait();
   int murder();
+  int identifiable();
   void free_output();
 };
 
@@ -113,15 +115,16 @@ struct PuppetPipedProcess {
  */
 
 typedef int32_t unichar_t;
-extern const string PUPPET_LINE_SEP;
 
-static inline int is_prefix(const char *pre, const char *str) {
-  while(*str == *pre && *str && *pre) {
-    str++;
-    pre++;
-  }
 
-  return !*pre;
-}
+int is_prefix(const char *pre, const char *str);
+int puppet_isspace(unichar_t ch);
+int puppet_isdigit(unichar_t ch);
+int puppet_isalpha(unichar_t ch);
+int puppet_isiden(unichar_t ch);
+int puppet_isxdigit(unichar_t ch);
+unichar_t puppet_conv_xdigit(unichar_t ch);
+unichar_t puppet_toupper(unichar_t ch);
+unichar_t puppet_tolower(unichar_t ch);
 
 #endif

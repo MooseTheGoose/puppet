@@ -13,7 +13,87 @@
 #include <fcntl.h>
 #endif
 
-const string PUPPET_LINE_SEP = "\n";
+int is_prefix(const char *pre, const char *str) {
+  while(*str == *pre && *str && *pre) {
+    str++;
+    pre++;
+  }
+
+  return !*pre;
+}
+
+int puppet_isspace(unichar_t ch) {
+  int yes = 0;
+
+  static uint16_t spaces[] = {
+    /* ASCII Whitespace, non-contiguous */
+    ' '
+
+    /* 
+     * Unicode space separators not in ASCII
+     * and not contiguous
+     */
+    0xA0, 0x1680, 0x202F, 0x205F, 0x3000,
+
+    /* 
+     * Paragraph and "line separator" 
+     * (Unicode's line separator, not Foundations's) 
+     */
+    0x2028, 0x2029,
+
+    /* Null terminator */
+    0
+  };
+
+  if(ch >= '\t' && ch <= '\r' || ch >= 0x2000 && ch <= 0x2010) { 
+    yes = 1; 
+  } else {
+    for(int i = 0; spaces[i] && !yes; i++) {
+      if(ch == spaces[i]) { 
+        yes = 1; 
+      } 
+    }
+  }
+
+  return yes;
+}
+
+unichar_t puppet_toupper(unichar_t ch) {
+  if(ch >= 'a' && ch <= 'z') {
+    ch += 'A' - 'a';
+  }
+  return ch;
+}
+
+unichar_t puppet_tolower(unichar_t ch) {
+  if(ch >= 'A' && ch <= 'Z') {
+    ch += 'a' - 'A';
+  }
+  return ch;
+}
+
+unichar_t puppet_conv_xdigit(unichar_t ch) {
+  ch = puppet_toupper(ch);
+  return ch >= 'A' ? (ch - 'A' + 10) : (ch - '0');
+}
+
+int puppet_isdigit(unichar_t ch) {
+  return ch >= '0' && ch <= '9';
+}
+
+int puppet_isalpha(unichar_t ch) {
+  ch = puppet_toupper(ch);
+  return ch >= 'A' && ch <= 'Z';
+}
+
+int puppet_isiden(unichar_t ch) {
+  return puppet_isalpha(ch) || ch == '_' || ch >= 0x80 && !puppet_isspace(ch);
+}
+
+int puppet_isxdigit(unichar_t ch) {
+  ch = puppet_conv_xdigit(ch);
+  return ch >= 0 && ch < 16;
+}
 
 string PuppetBigInt::to_string() {
   char *buffer = mpz_get_str(0, 10, this->bignum);
@@ -88,6 +168,15 @@ string PuppetData::to_string() {
  *  TODO: Command line logic for UNIX-like systems is the
  *        exact same in PuppetProcess and PuppetPipedProcess.
  *        Put it in a separate function.
+ *
+ *  TODO: At the moment, output gets redirected towards a null
+ *        file. Later on, introduce an optional parameter for
+ *        log files when given the name (default to null file).
+ *        Obviously, don't do this for PuppetPipedProcess.
+ *
+ *  TODO: Along those lines, have a master logger and pass it
+ *        in as a parameter to log when process or file creation
+ *        fails and why. Do this for PuppetPipedProcess too.
  */
 
 int PuppetProcess::init(const char *cmd) {
@@ -164,7 +253,7 @@ int PuppetPipedProcess::init(const char *cmd) {
   STARTUPINFO si;
   PROCESS_INFORMATION pi;
   SECURITY_ATTRIBUTES sa;
-  HANDLE read_end, write_end;
+  HANDLE read_end, write_end, write_err_end;
 
   this->process.hproc = 0;
   ZeroMemory(&si, sizeof(si));
@@ -176,7 +265,9 @@ int PuppetPipedProcess::init(const char *cmd) {
   sa.bInheritHandle = TRUE;
 
   if(CreatePipe(&read_end, &write_end, &sa, 0)) {
-    si.hStdError = write_end;
+    DuplicateHandle(GetCurrentProcess(), write_end, GetCurrentProcess(),
+                    &write_err_end, 0, TRUE, DUPLICATE_SAME_ACCESS);
+    si.hStdError = write_err_end;
     si.hStdOutput = write_end;
     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
     si.dwFlags = STARTF_USESTDHANDLES;
@@ -185,6 +276,7 @@ int PuppetPipedProcess::init(const char *cmd) {
     if(CreateProcess(0, cmd_line, 0, 0, TRUE, CREATE_NO_WINDOW, 0, 0, &si, &pi)) {
       CloseHandle(pi.hThread);
       CloseHandle(write_end);
+      CloseHandle(write_err_end);
       this->process.pid = pi.dwProcessId;
       this->process.hproc = pi.hProcess;
 
@@ -215,6 +307,7 @@ int PuppetPipedProcess::init(const char *cmd) {
       }
     } else {
       CloseHandle(write_end);
+      CloseHandle(write_err_end);
     }
 
     CloseHandle(read_end);
@@ -290,9 +383,17 @@ int PuppetPipedProcess::init(const char *cmd) {
   return this->process.pid;
 }
 
+int PuppetProcess::identifiable() {
+  return this->pid > 0;
+}
+
+int PuppetPipedProcess::identifiable() {
+  return this->process.identifiable();
+}
+
 int PuppetProcess::murder() {
   int status = -1;
-  if(this->pid > 0) {
+  if(this->identifiable()) {
     #if defined(_WIN32)
     HANDLE term_handle = OpenProcess(PROCESS_TERMINATE, 0, this->pid);
 
@@ -321,7 +422,7 @@ int PuppetPipedProcess::murder() {
 }
 
 void PuppetProcess::wait() {
-  if(this->pid > 0) {
+  if(this->identifiable()) {
     #if defined(_WIN32)
     HANDLE query_handle = OpenProcess(PROCESS_QUERY_INFORMATION, 0, this->pid);
     DWORD status = STILL_ACTIVE;
