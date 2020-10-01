@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <curl/curl.h>
-#include "puppet_types.hpp"
+#include "puppet_os.hpp"
 
 using std::string;
 using std::vector;

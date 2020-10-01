@@ -1,5 +1,5 @@
-#ifndef JSON_PARSER_HPP
-#define JSON_PARSER_HPP
+#ifndef LEXER_HPP
+#define LEXER_HPP
 
 #include <vector>
 #include <string>
@@ -9,10 +9,9 @@ using std::string;
 using std::vector;
 
 enum PUPPET_TOKEN_TYPE {
-  TOK_OBJ, TOK_BIGINT, TOK_FLOAT, 
-  TOK_STRING, TOK_IDENTIFIER, 
-  TOK_KEYWORD, TOK_LBRACKET, TOK_RBRACKET,
-  TOK_NL, TOK_SEMICOLON
+  TOK_BIGINT, TOK_FLOAT, TOK_STRING, TOK_IDENTIFIER, 
+  TOK_OPERATOR, TOK_KEYWORD, TOK_LBRACKET, TOK_RBRACKET,
+  TOK_NL, TOK_SEMICOLON, TOK_TERM
 };
 
 enum TOK_BRACKET_TYPE {
@@ -21,37 +20,37 @@ enum TOK_BRACKET_TYPE {
 };
 
 enum TOK_KEYWORD_TYPE {
-  KW_SEND, KW_KEYS, KW_FIND, KW_GET,
+  KW_SEND, KW_FIND, KW_GET,
   KW_ALL, KW_EXECUTE, KW_ASYNC, KW_CLICK,
   KW_URL, KW_TAG, KW_CSS, KW_ID, KW_XPATH,
-  KW_SLEEP
+  KW_SLEEP, KW_TO
 };
 
 enum TOK_OPERATOR_TYPE {
-  /* 
-   *  Hold off on this. The order 
-   *  on this enum matters.
-   */
+  /* Order on enum matters. */
 };
 
 extern const char *PUPPET_KEYWORDS[];
 extern const char *PUPPET_OPERATORS[];
-extern const char *PUPPET_LINE_SEP;
-extern const char *PUPPET_SLCOMMENT;
-extern const char *PUPPET_MLCOMMENT_OPEN;
-extern const char *PUPPET_MLCOMMENT_CLOSE;
+extern const char *PUPPET_LBRACKETS[];
+extern const char *PUPPET_RBRACKETS[];
+extern const char *const PUPPET_LINE_SEP;
+extern const char *const PUPPET_SLCOMMENT;
+extern const char *const PUPPET_MLCOMMENT_OPEN;
+extern const char *const PUPPET_MLCOMMENT_CLOSE;
 
 struct lexer_token {
-  int identifier;
+  int type;
   int lino;
   int chno;
   union {
     int brack_type;
     int keyword;
     const char *identifier;
-    mpz_t bigint;
-    double flt;
+    PuppetBigInt bigint;
+    PuppetFloat flt;
     const char *strliteral;
+    int op;
   };
 };
 
@@ -66,12 +65,19 @@ struct lexer {
   unichar_t peekchar();
   unichar_t eatchar();
 
-  int lex(const string &source);
+  void init(const char *source);
+  int lex();
   int lex_stage1();
   unichar_t lex_slcomment();
   unichar_t lex_mlcomment();
   unichar_t lex_number();
+  unichar_t lex_operator();
   unichar_t lex_identifier();
+  unichar_t lex_string();
+  unichar_t lex_lbracket();
+  unichar_t lex_rbracket();
+  unichar_t lex_semicolon();
+  unichar_t lex_escape(unichar_t *escape);
 };
 
 

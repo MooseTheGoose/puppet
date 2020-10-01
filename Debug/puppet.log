@@ -1,2 +1,8 @@
-﻿  webdrivers.cpp
-  puppet.vcxproj -> G:\puppet\Debug\puppet.exe
+﻿webdrivers.obj : error LNK2019: unresolved external symbol "public: int __thiscall PuppetProcess::init(char const *)" (?init@PuppetProcess@@QAEHPBD@Z) referenced in function "public: int __thiscall GeckoPuppet::init(void)" (?init@GeckoPuppet@@QAEHXZ)
+webdrivers.obj : error LNK2019: unresolved external symbol "public: int __thiscall PuppetProcess::murder(void)" (?murder@PuppetProcess@@QAEHXZ) referenced in function "public: int __thiscall GeckoPuppet::quit(void)" (?quit@GeckoPuppet@@QAEHXZ)
+webdrivers.obj : error LNK2019: unresolved external symbol "public: int __thiscall PuppetProcess::identifiable(void)" (?identifiable@PuppetProcess@@QAEHXZ) referenced in function "public: int __thiscall GeckoPuppet::init(void)" (?init@GeckoPuppet@@QAEHXZ)
+webdrivers.obj : error LNK2019: unresolved external symbol "public: int __thiscall PuppetPipedProcess::init(char const *)" (?init@PuppetPipedProcess@@QAEHPBD@Z) referenced in function "char const * __cdecl local_addr_from_process(struct PuppetProcess const &)" (?local_addr_from_process@@YAPBDABUPuppetProcess@@@Z)
+webdrivers.obj : error LNK2019: unresolved external symbol "public: void __thiscall PuppetPipedProcess::wait(void)" (?wait@PuppetPipedProcess@@QAEXXZ) referenced in function "char const * __cdecl local_addr_from_process(struct PuppetProcess const &)" (?local_addr_from_process@@YAPBDABUPuppetProcess@@@Z)
+webdrivers.obj : error LNK2019: unresolved external symbol "public: int __thiscall PuppetPipedProcess::identifiable(void)" (?identifiable@PuppetPipedProcess@@QAEHXZ) referenced in function "char const * __cdecl local_addr_from_process(struct PuppetProcess const &)" (?local_addr_from_process@@YAPBDABUPuppetProcess@@@Z)
+webdrivers.obj : error LNK2019: unresolved external symbol "public: void __thiscall PuppetPipedProcess::free_output(void)" (?free_output@PuppetPipedProcess@@QAEXXZ) referenced in function "char const * __cdecl local_addr_from_process(struct PuppetProcess const &)" (?local_addr_from_process@@YAPBDABUPuppetProcess@@@Z)
+G:\puppet\Debug\puppet.exe : fatal error LNK1120: 7 unresolved externals

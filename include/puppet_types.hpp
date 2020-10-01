@@ -8,10 +8,28 @@
 #include <string>
 using std::string;
 using std::vector;
+using std::u16string;
+using std::u32string;
 
-#if defined(_WIN32)
-#include <windows.h>
-#endif
+/*
+ *  Data types & functions for 
+ *  lexer & parser in Puppet
+ */
+
+typedef int32_t unichar_t;
+
+int is_prefix(const char *pre, const char *str);
+int find_prefix_in_strv(const char *str, const char **strv);
+int find_in_strv(const char *str, const char **strv);
+int puppet_isspace(unichar_t ch);
+int puppet_isdigit(unichar_t ch);
+int puppet_isalpha(unichar_t ch);
+int puppet_isiden(unichar_t ch);
+int puppet_isxdigit(unichar_t ch);
+unichar_t puppet_conv_xdigit(unichar_t ch);
+unichar_t puppet_toupper(unichar_t ch);
+unichar_t puppet_tolower(unichar_t ch);
+
 
 /*
  *  Basic data types in Puppet. 
@@ -23,22 +41,48 @@ enum PUPPET_TYPES {
 };
 
 struct PuppetData;
+struct PuppetFloat;
+struct PuppetBigInt;
+struct PuppetString;
+struct PuppetList;
+struct PuppetObject;
 
 struct PuppetBigInt {
   mpz_t bignum;
 
   string to_string();
+  void init(int initial);
+  void multint(int mult);
+  void divint(int div);
+  void modint(int mod);
+  void addint(int add);
+  void subint(int sub);
+  void free();
+  PuppetFloat to_float();
 };
 
 struct PuppetFloat {
-  double num;
+  double flt;
 
+  void init();
   string to_string();
+  PuppetBigInt to_bigint();
+};
+
+enum PUPPET_STRING_TYPE {
+  PUPPET_STR8, PUPPET_STR16, PUPPET_STR32
 };
 
 struct PuppetString {
-  string str;
+  int type;
+  union {
+    string *str8;
+    u16string *str16;
+    u32string *str32;
+  };
 
+  void init();
+  void append_unichar(unichar_t ch);
   string to_string();
 };
 
@@ -68,63 +112,6 @@ struct PuppetData {
   string to_string();
 };
 
-/*
- *  Types for OS-specific things 
- *  like processes and pipes that
- *  Puppet needs. Certainly not for
- *  general use, but suits Puppet's needs
- *  just fine.
- */
 
-/*
- *  Represents background processes which
- *  runs paralell to this process.
- */
-struct PuppetProcess {
-  int pid;
-
-  #if defined(_WIN32)
-  HANDLE hproc;
-  #endif
-
-  int init(const char *cmd_line);
-  void wait();
-  int murder();
-  int identifiable();
-};
-
-/*
- *  Piped process which captures stdout & stderr and waits
- *  until that is done.
- */
-struct PuppetPipedProcess {
-  PuppetProcess process;
-  const char *output;
-  size_t len;
-
-  int init(const char *cmd_line);
-  void wait();
-  int murder();
-  int identifiable();
-  void free_output();
-};
-
-/*
- *  Data types & functions for 
- *  lexer & parser in Puppet
- */
-
-typedef int32_t unichar_t;
-
-
-int is_prefix(const char *pre, const char *str);
-int puppet_isspace(unichar_t ch);
-int puppet_isdigit(unichar_t ch);
-int puppet_isalpha(unichar_t ch);
-int puppet_isiden(unichar_t ch);
-int puppet_isxdigit(unichar_t ch);
-unichar_t puppet_conv_xdigit(unichar_t ch);
-unichar_t puppet_toupper(unichar_t ch);
-unichar_t puppet_tolower(unichar_t ch);
 
 #endif

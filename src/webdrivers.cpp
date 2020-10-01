@@ -5,14 +5,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#if defined(_WIN32)
-#include <windows.h>
-#define PUPPET_SLEEP(x) Sleep(x)
-#else
-#include <unistd.h>
-#define PUPPET_SLEEP(x) usleep((x) * 1000)
-#endif
-
 /*
  *  An OS-specific thing which uses some OS utility 
  *  to get the first local address that a process is using. 
