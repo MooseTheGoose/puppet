@@ -103,6 +103,7 @@
     <ClCompile Include="src\http_conn.cpp" />
     <ClCompile Include="src\lexer.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\puppet_os.cpp" />
     <ClCompile Include="src\puppet_types.cpp" />
     <ClCompile Include="src\webdrivers.cpp" />
   </ItemGroup>
@@ -121,6 +122,7 @@
     <ClInclude Include="include\lexer.hpp" />
     <ClInclude Include="include\mpir.h" />
     <ClInclude Include="include\mpirxx.h" />
+    <ClInclude Include="include\puppet_os.hpp" />
     <ClInclude Include="include\puppet_types.hpp" />
     <ClInclude Include="include\webdrivers.hpp" />
     <ClInclude Include="include\zconf.h" />
