@@ -124,6 +124,141 @@ string PuppetBigInt::to_string() {
   return s;
 }
 
+int utf8_str::construct_from_bytes(const char *bytestr) {
+  string local_str = "";
+  size_t local_byte_index = 0;
+  size_t local_len = 0;
+  
+  while(bytestr[local_byte_index]) {
+    uint8_t peek = (uint8_t)bytestr[local_byte_index++];
+    local_str.push_back(peek);
+    if(peek >= 0x80) {
+      int n_more_bytes = 0;
+      uint8_t prefix = peek << 1;
+      unichar_t curr_char;
+
+      while(prefix & 0x80) {
+        n_more_bytes++;
+        prefix <<= 1;
+      }
+
+      if(n_more_bytes < 1 || n_more_bytes > 3) {
+        local_str.clear();
+        this->byte_index = local_byte_index - 1;
+        return -1;
+      }
+
+      unichar_t low_bound = 1 << (((n_more_bytes + 3) * (n_more_bytes + 2)) / 2 + 1);
+      curr_char = prefix >> (n_more_bytes + 1);
+      for(int i = 0; i < n_more_bytes; i++) {
+        peek = bytestr[local_byte_index++];
+        local_str.push_back(peek);
+        if((peek & 0xC0) != 0x80) {
+          local_str.clear();
+          this->byte_index = local_byte_index - i - 2;
+          return -1;
+        }
+        curr_char <<= 6;
+        curr_char |= (peek & 0x3F);
+      }
+      if(curr_char < low_bound || curr_char > 0x10FFFF) {
+        local_str.clear();
+        this->byte_index = local_byte_index - n_more_bytes - 1;
+        return -1;
+      }
+    }
+    local_len++;
+  }
+  this->str = local_str; 
+  this->len = local_len;
+  this->byte_index = 0;
+  this->index = 0;
+  return 0;
+}
+
+unichar_t utf8_str::peekchar() {
+  unichar_t peek;
+  size_t local_byte_index = this->byte_index;
+
+  if(this->index > this->len) {
+    return -1;
+  }
+  peek = (uint8_t)this->str[local_byte_index++];
+  if(peek >= 0x80) {
+    int n_more_bytes = 0;
+    unsigned char prefix = peek << 1;
+    unichar_t curr_char;
+
+    while(prefix & 0x80) {
+      n_more_bytes++;
+      prefix <<= 1;
+    }
+
+    peek = prefix >> (n_more_bytes + 1);
+    for(int i = 0; i < n_more_bytes; i++) {
+      curr_char = this->str[local_byte_index++];
+      peek <<= 6;
+      peek |= (curr_char & 0x3F);
+    }
+  }
+  return peek;
+}
+
+unichar_t utf8_str::eatchar() {
+  unichar_t eat = this->peekchar();
+
+  if(eat > 0) {
+    size_t local_byte_index = this->byte_index;
+    while((this->str[++local_byte_index] & 0xC0) == 0x80) {}
+    this->byte_index = local_byte_index;
+    this->index++;
+  }
+  return eat;
+}
+
+unichar_t utf8_str::pukechar() {
+  size_t local_byte_index = this->byte_index;
+  unichar_t puke = -1;
+  if(local_byte_index) {
+    while((this->str[--local_byte_index] & 0xC0) == 0x80) {}
+    this->byte_index = local_byte_index;
+    this->index--;
+    puke = this->peekchar();
+  }
+  return puke;
+}
+
+int utf8_str::append_unichar(unichar_t ch) {
+  int status = -1;
+  char prefix = 0xC0;
+  if(ch >= 0 || ch < 0x110000) {
+    if(ch < 0x80) {
+      this->str.push_back(ch);
+    } else {
+      int8_t prefix = 0x80;
+      while(ch > 0x40) {
+        this->str.push_back(ch & 0x3F);
+        ch >>= 6;
+        prefix >>= 1;
+      }
+      this->str.push_back(prefix | ch);
+    }
+    this->len++;
+  }
+  return status;
+}
+
+const char *utf8_str::current() {
+  return this->str.data() + this->byte_index;
+}
+
+const char *utf8_str::new_literal() {
+  char *literal = new char[this->str.size() + 1];
+  this->str.copy(literal, this->str.size(), 0);
+  literal[this->str.size()] = 0;
+  return literal;
+}
+
 void PuppetBigInt::init(int initial) {
   mpz_init_set_si(this->bignum, initial);
 }
@@ -171,112 +306,15 @@ string PuppetFloat::to_string() {
 }
 
 void PuppetString::init() {
-  this->type = PUPPET_STR8;
-  this->str8 = new string;
+  this->str.construct_from_bytes("");
 }
 
-void PuppetString::append_unichar(unichar_t curr_char) {
-  if(curr_char < 0 || curr_char >= 0x110000) {
-    printf("STRING ERROR: Got a unichar_t outside of Unicode range! (Code: %d)\r\n", curr_char);
-  } else {
-    switch(this->type) {
-      case PUPPET_STR8:
-        if(curr_char < 0x100) {
-          this->str8->push_back(curr_char);
-        } else if(curr_char < 0x10000) {
-          this->type = PUPPET_STR16;
-          u16string *newstr = new u16string;
-          for(size_t i = 0; i < this->str8->size(); i++) {
-            newstr->push_back(this->str8->data()[i]);
-          }
-          newstr->push_back(curr_char);
-          delete this->str8;
-          this->str16 = newstr;
-        } else {
-          this->type = PUPPET_STR32;
-          u32string *newstr = new u32string;
-          for(size_t i = 0; i < this->str8->size(); i++) {
-            newstr->push_back(this->str8->data()[i]);
-          }
-          newstr->push_back(curr_char);
-          delete this->str8;
-          this->str32 = newstr;
-        }
-        break;
-      case PUPPET_STR16:
-        if(curr_char < 0x10000) {
-          this->str16->push_back(curr_char);
-        } else {
-          this->type = PUPPET_STR32;
-          u32string *newstr = new u32string;
-          for(size_t i = 0; i < this->str16->size(); i++) {
-            newstr->push_back(this->str16->data()[i]);
-          }
-          newstr->push_back(curr_char);
-          delete this->str16;
-          this->str32 = newstr;
-        }
-        break;
-      case PUPPET_STR32:
-        this->str32->push_back(curr_char);
-        break;
-    }
-  }
+void PuppetString::append_unichar(unichar_t ch) {
+  this->str.append_unichar(ch);
 }
 
 string PuppetString::to_string() {
-  string retstr = "";
-
-  switch(this->type) {
-    case PUPPET_STR8:
-      for(size_t i = 0; i < this->str8->size(); i++) {
-        if(this->str8->data()[i] == '"') {
-          retstr.push_back('\\');
-        }
-        retstr.push_back(this->str8->data()[i]);
-      }
-      break;
-    case PUPPET_STR16:
-      for(size_t i = 0; i < this->str16->size(); i++) {
-        unichar_t curr_char = this->str16->data()[i];
-        if(curr_char < 0x80) {
-          retstr.push_back(curr_char);
-        } else if(curr_char >= 0x80 && curr_char < 0x7FF) {
-          retstr.push_back(0xC0 | curr_char >> 6 & 0x1F);
-          retstr.push_back(curr_char & 0x3F);
-        } else {
-          retstr.push_back(0xE0 | curr_char >> 12 & 0xF);
-          retstr.push_back(0x80 | curr_char >> 6 & 0x3F);
-          retstr.push_back(0x80 | curr_char & 0x3F);
-        }
-      }
-      break;
-    case PUPPET_STR32:
-      for(size_t i = 0; i < this->str32->size(); i++) {
-        unichar_t curr_char = this->str32->data()[i];
-        if(curr_char < 0x80) {
-          retstr.push_back(curr_char);
-        } else if(curr_char >= 0x80 && curr_char < 0x7FF) {
-          retstr.push_back(0xC0 | curr_char >> 6 & 0x1F);
-          retstr.push_back(curr_char & 0x3F);
-        } else if(curr_char >= 0x800 && curr_char < 0x10000) {
-          retstr.push_back(0xE0 | curr_char >> 12 & 0xF);
-          retstr.push_back(0x80 | curr_char >> 6 & 0x3F);
-          retstr.push_back(0x80 | curr_char & 0x3F);
-        } else if(curr_char >= 0x10000 && curr_char < 0x110000) {
-          retstr.push_back(0xF0 | curr_char >> 18 & 0x7);
-          retstr.push_back(0x80 | curr_char >> 12 & 0x3F);
-          retstr.push_back(0x80 | curr_char >> 6 & 0x3F);
-          retstr.push_back(0x80 | curr_char & 0x3F);
-        } else {
-          /* 
-           * TODO: This is an assert. Treat it as such later.
-           */
-          printf("STRING ERROR: Got a unichar_t outside of Unicode range! (Code: %d)\r\n", curr_char);
-        }
-      }      
-  }
-  return "\"" + retstr + "\""; 
+  return "\"" + this->str.str + "\""; 
 }
 
 string PuppetList::to_string() {

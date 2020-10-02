@@ -14,11 +14,11 @@ vcpkg and MSBuild are used to resolve these at the moment.
 * Actually learn build systems or introduce separate platform
   folders so that build process goes smoothly
 
-* Use processes and netstat-like utilities on different platforms
-  to create drivers and identify what port drivers are listening on.
+* Try to talk to drivers using HTTP
 
-* Try to talk to drivers using libcurl
+* There are some times I use C headers. Switch to C++ headers
+  and replace C functions with std::<function name>
 
-* Actually make the lexer (Work on above points before this).
+
 
 

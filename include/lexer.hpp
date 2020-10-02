@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include "puppet_types.hpp"
+#include "puppet_logger.hpp"
 
 using std::string;
 using std::vector;
@@ -39,6 +40,14 @@ extern const char *const PUPPET_SLCOMMENT;
 extern const char *const PUPPET_MLCOMMENT_OPEN;
 extern const char *const PUPPET_MLCOMMENT_CLOSE;
 
+/*
+ * Umm... This is awkward. I capitalize some struct
+ * names and lowercase others.
+ *
+ * TODO: Change lexer_token, lexer, and utf8_str to
+ *       be capitalized.
+ */
+
 struct lexer_token {
   int type;
   int lino;
@@ -55,17 +64,19 @@ struct lexer_token {
 };
 
 struct lexer {
+  StringLogger logger;
+  vector<lexer_token> token_queue;
+  utf8_str data;
   int curr_lino;
   int curr_chno;
-  const char *data;
-  size_t index;
-  size_t len;
-  vector<lexer_token> token_queue;
+  int status;
 
   unichar_t peekchar();
   unichar_t eatchar();
+  unichar_t eatstr(const char *str);
+  const char *current();
 
-  void init(const char *source);
+  int init(const char *source);
   int lex();
   int lex_stage1();
   unichar_t lex_slcomment();

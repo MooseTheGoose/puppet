@@ -1,4 +1,4 @@
-﻿  lexer.cpp
-  main.cpp
+﻿  puppet_types.cpp
+  webdrivers.cpp
   Generating Code...
   puppet.vcxproj -> G:\puppet\x64\Debug\puppet.exe

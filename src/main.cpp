@@ -3,14 +3,14 @@
 #include "lexer.hpp"
 #include "puppet_os.hpp"
 #include <stdlib.h>
+#include <locale.h>
 
 int main(int argc, const char *argv[]) {
-  lexer lxr = {};
-  GeckoPuppet puppet;
-  lxr.init("THIS IS THE WAY 0x12_34{=\"THE WORLD ENDS\"}SEND BY FIND;");
+  lexer lxr;
+  setlocale(LC_ALL, "");
 
+  lxr.init("THIS IS THE BEST PROGRAMMING LANGUAGE TO FIND - SEND 0x123 TO ALL");
   if(!lxr.lex()) {
-    printf("Success!\r\n");
     for(size_t i = 0; lxr.token_queue[i].type != TOK_TERM; i++) {
       lexer_token t = lxr.token_queue[i];
       printf("TYPE: %d\r\n", t.type);
@@ -42,7 +42,7 @@ int main(int argc, const char *argv[]) {
       }
     }
   } else {
-    printf("Failure!\r\n");
+    printf("%s\r\n", lxr.logger.output.data());
   }
 
   return 0;

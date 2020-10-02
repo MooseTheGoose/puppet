@@ -17,6 +17,22 @@ using std::u32string;
  */
 
 typedef int32_t unichar_t;
+struct utf8_str {
+  string str;
+  size_t byte_index;
+  size_t index;
+  size_t len;
+
+  int append_unichar(unichar_t ch);
+  int construct_from_bytes(const char *bytestr);
+  unichar_t peekchar();
+  unichar_t eatchar();
+  unichar_t pukechar();
+  void end();
+  void begin();
+  const char *current();
+  const char *new_literal();
+};
 
 int is_prefix(const char *pre, const char *str);
 int find_prefix_in_strv(const char *str, const char **strv);
@@ -73,13 +89,13 @@ enum PUPPET_STRING_TYPE {
   PUPPET_STR8, PUPPET_STR16, PUPPET_STR32
 };
 
+/* 
+ * TODO: Change this so that utf8_str is
+ *       the underlying type.
+ */
+
 struct PuppetString {
-  int type;
-  union {
-    string *str8;
-    u16string *str16;
-    u32string *str32;
-  };
+  utf8_str str;
 
   void init();
   void append_unichar(unichar_t ch);
