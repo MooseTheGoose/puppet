@@ -58,9 +58,12 @@ int puppet_isspace(unichar_t ch) {
 
     /* 
      * Paragraph and "line separator" 
-     * (Unicode's line separator, not Foundations's) 
+     * (Unicode's line separator, not Puppet's) 
      */
-    0x2028, 0x2029,
+    0x2028, 0x2029, 
+
+    /* Byte order mark */
+    0xFEFF,
 
     /* Null terminator */
     0
@@ -124,7 +127,7 @@ string PuppetBigInt::to_string() {
   return s;
 }
 
-int utf8_str::construct_from_bytes(const char *bytestr) {
+int Utf8String::construct_from_bytes(const char *bytestr) {
   string local_str = "";
   size_t local_byte_index = 0;
   size_t local_len = 0;
@@ -176,7 +179,7 @@ int utf8_str::construct_from_bytes(const char *bytestr) {
   return 0;
 }
 
-unichar_t utf8_str::peekchar() {
+unichar_t Utf8String::peekchar() {
   unichar_t peek;
   size_t local_byte_index = this->byte_index;
 
@@ -204,7 +207,7 @@ unichar_t utf8_str::peekchar() {
   return peek;
 }
 
-unichar_t utf8_str::eatchar() {
+unichar_t Utf8String::eatchar() {
   unichar_t eat = this->peekchar();
 
   if(eat > 0) {
@@ -216,7 +219,7 @@ unichar_t utf8_str::eatchar() {
   return eat;
 }
 
-unichar_t utf8_str::pukechar() {
+unichar_t Utf8String::pukechar() {
   size_t local_byte_index = this->byte_index;
   unichar_t puke = -1;
   if(local_byte_index) {
@@ -228,7 +231,7 @@ unichar_t utf8_str::pukechar() {
   return puke;
 }
 
-int utf8_str::append_unichar(unichar_t ch) {
+int Utf8String::append_unichar(unichar_t ch) {
   int status = -1;
   char prefix = 0xC0;
   if(ch >= 0 || ch < 0x110000) {
@@ -248,11 +251,15 @@ int utf8_str::append_unichar(unichar_t ch) {
   return status;
 }
 
-const char *utf8_str::current() {
+const char *Utf8String::current() {
   return this->str.data() + this->byte_index;
 }
 
-const char *utf8_str::new_literal() {
+const char *Utf8String::begin_bytes() {
+  return this->str.data();
+}
+
+const char *Utf8String::new_literal() {
   char *literal = new char[this->str.size() + 1];
   this->str.copy(literal, this->str.size(), 0);
   literal[this->str.size()] = 0;
@@ -305,12 +312,26 @@ string PuppetFloat::to_string() {
   return std::to_string(this->flt);
 }
 
+void PuppetString::init_literal(const char *bytes) {
+  this->str.construct_from_bytes(bytes);
+}
+
 void PuppetString::init() {
   this->str.construct_from_bytes("");
 }
 
+/*
+void PuppetString::init_literal(const char *lit) {
+  this->str.construct_from_bytes(lit);
+}
+*/
+
 void PuppetString::append_unichar(unichar_t ch) {
   this->str.append_unichar(ch);
+}
+
+int PuppetString::compare(PuppetString &rhs) {
+  return strcmp(this->str.begin_bytes(), rhs.str.begin_bytes());
 }
 
 string PuppetString::to_string() {
@@ -332,6 +353,31 @@ string PuppetList::to_string() {
   return buf;
 }
 
+void PuppetObject::init() {
+  this->keys = vector<PuppetString>();
+  this->values = vector<PuppetData>();
+}
+
+int PuppetObject::contains(PuppetString &key) {
+  for(int i = 0; i < this->keys.size(); i++) {
+    if(!key.compare(this->keys[i])) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void PuppetObject::add_pair(PuppetString &key, PuppetData &value) {
+  for(int i = 0; i < this->keys.size(); i++) {
+    if(!key.compare(this->keys[i])) {
+      this->values[i] = value;
+      return;
+    }
+  }
+  this->keys.push_back(key);
+  this->values.push_back(value);
+}
+
 string PuppetObject::to_string() {
   string buf = "{";
 
@@ -349,7 +395,7 @@ string PuppetObject::to_string() {
 string PuppetData::to_string() {
   string rep = "";
 
-  switch(identifier) {
+  switch(type) {
     case TYPE_BIGINT:
       rep = this->i->to_string();
       break;

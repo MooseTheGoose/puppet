@@ -29,6 +29,7 @@ enum TOK_KEYWORD_TYPE {
 
 enum TOK_OPERATOR_TYPE {
   /* Order on enum matters. */
+  OP_COLON, OP_COMMA
 };
 
 extern const char *PUPPET_KEYWORDS[];
@@ -40,15 +41,7 @@ extern const char *const PUPPET_SLCOMMENT;
 extern const char *const PUPPET_MLCOMMENT_OPEN;
 extern const char *const PUPPET_MLCOMMENT_CLOSE;
 
-/*
- * Umm... This is awkward. I capitalize some struct
- * names and lowercase others.
- *
- * TODO: Change lexer_token, lexer, and utf8_str to
- *       be capitalized.
- */
-
-struct lexer_token {
+struct LexerToken {
   int type;
   int lino;
   int chno;
@@ -63,10 +56,10 @@ struct lexer_token {
   };
 };
 
-struct lexer {
+struct Lexer {
   StringLogger logger;
-  vector<lexer_token> token_queue;
-  utf8_str data;
+  vector<LexerToken> token_queue;
+  Utf8String data;
   int curr_lino;
   int curr_chno;
   int status;

@@ -25,14 +25,9 @@ EXECUTE "alert('Hello, World!');"
 # Execute same script, but async
 ASYNC "alert('Hello, World!');"
 
-# Open and close a file for writing.
-fp = OPEN FILE "HelloWorld.txt"
-SEND "Hello, World!" TO fp
-CLOSE fp
-
 # Get all window handles, and output the list to stdout.
 list = GET ALL WINDOW
-SEND list TO out
+SEND list TO OUT
 
 # Sleep for 2.5 seconds
 SLEEP 2.5

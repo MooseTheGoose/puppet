@@ -17,7 +17,7 @@ using std::u32string;
  */
 
 typedef int32_t unichar_t;
-struct utf8_str {
+struct Utf8String {
   string str;
   size_t byte_index;
   size_t index;
@@ -30,6 +30,7 @@ struct utf8_str {
   unichar_t pukechar();
   void end();
   void begin();
+  const char *begin_bytes();
   const char *current();
   const char *new_literal();
 };
@@ -85,20 +86,13 @@ struct PuppetFloat {
   PuppetBigInt to_bigint();
 };
 
-enum PUPPET_STRING_TYPE {
-  PUPPET_STR8, PUPPET_STR16, PUPPET_STR32
-};
-
-/* 
- * TODO: Change this so that utf8_str is
- *       the underlying type.
- */
-
 struct PuppetString {
-  utf8_str str;
+  Utf8String str;
 
   void init();
+  void init_literal(const char *bytes);
   void append_unichar(unichar_t ch);
+  int compare(PuppetString &rhs);
   string to_string();
 };
 
@@ -112,11 +106,14 @@ struct PuppetObject {
   vector<PuppetString> keys;
   vector<PuppetData> values;
 
+  void init();
+  void add_pair(PuppetString &key, PuppetData &value);
+  int contains(PuppetString &key);
   string to_string();
 };
 
 struct PuppetData {
-  int identifier;
+  int type;
   union {
     PuppetBigInt *i;
     PuppetFloat *f;
@@ -126,6 +123,7 @@ struct PuppetData {
   };
 
   string to_string();
+  void free();
 };
 
 

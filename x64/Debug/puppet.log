@@ -1,4 +1,2 @@
-﻿  puppet_types.cpp
-  webdrivers.cpp
-  Generating Code...
+﻿  parser.cpp
   puppet.vcxproj -> G:\puppet\x64\Debug\puppet.exe

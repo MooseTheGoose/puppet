@@ -23,7 +23,7 @@ const char *PUPPET_KEYWORDS[] = {
 };
 
 const char *PUPPET_OPERATORS[] = {
-  "-", "+", "=", 0
+  ":", ",", "-", "+", "=", 0
 };
 
 const char *PUPPET_LBRACKETS[] = {
@@ -41,7 +41,7 @@ const char *PUPPET_RBRACKETS[] = {
  *  If it fails (out-of-bounds, bad encoding, etc.),
  *  return a negative number.
  */
-unichar_t lexer::peekchar() {
+unichar_t Lexer::peekchar() {
   return this->data.peekchar();
 }
 
@@ -49,11 +49,11 @@ unichar_t lexer::peekchar() {
  *  Peek at next character, eat it, and
  *  push a token if appropriate.
  */
-unichar_t lexer::eatchar() {
+unichar_t Lexer::eatchar() {
   unichar_t eat = this->data.eatchar();
 
   if(eat >= 0 && is_prefix(PUPPET_LINE_SEP, this->current())) {
-    lexer_token nltok;
+    LexerToken nltok;
     nltok.type = TOK_NL;
     nltok.lino = this->curr_lino;
     nltok.chno = this->curr_chno;
@@ -67,7 +67,7 @@ unichar_t lexer::eatchar() {
   return eat;
 }
 
-unichar_t lexer::eatstr(const char *str) {
+unichar_t Lexer::eatstr(const char *str) {
   const char *before = this->current();
   size_t len = strlen(str);
   while(this->current() < before + len) {
@@ -76,11 +76,11 @@ unichar_t lexer::eatstr(const char *str) {
   return this->peekchar();
 }
 
-const char *lexer::current() {
+const char *Lexer::current() {
   return this->data.current();
 }
 
-unichar_t lexer::lex_slcomment() {
+unichar_t Lexer::lex_slcomment() {
   const char *before = this->current();
   unichar_t curr_char;
 
@@ -99,7 +99,7 @@ unichar_t lexer::lex_slcomment() {
   return curr_char;
 }
 
-unichar_t lexer::lex_mlcomment() {
+unichar_t Lexer::lex_mlcomment() {
   const char *local_data = this->current();
   unichar_t curr_char;
   size_t mlcomment_stack = 1;
@@ -132,10 +132,10 @@ unichar_t lexer::lex_mlcomment() {
   return curr_char;  
 }
 
-unichar_t lexer::lex_identifier() {
+unichar_t Lexer::lex_identifier() {
   unichar_t curr_char = this->peekchar();
-  utf8_str iden_str;
-  lexer_token tok;
+  Utf8String iden_str;
+  LexerToken tok;
 
   tok.lino = this->curr_lino;
   tok.chno = this->curr_chno;
@@ -160,10 +160,10 @@ unichar_t lexer::lex_identifier() {
   return curr_char;
 }
 
-unichar_t lexer::lex_operator() {
+unichar_t Lexer::lex_operator() {
   const char *before = this->current();
   int index = find_prefix_in_strv(before, PUPPET_OPERATORS);
-  lexer_token tok;
+  LexerToken tok;
 
   tok.type = TOK_OPERATOR;
   tok.lino = this->curr_lino;
@@ -174,12 +174,12 @@ unichar_t lexer::lex_operator() {
   return this->eatstr(PUPPET_OPERATORS[index]);
 }
 
-unichar_t lexer::lex_number() {
+unichar_t Lexer::lex_number() {
   PuppetBigInt i;
   int base = 10;
   unichar_t add = 0;
   unichar_t curr_char = this->peekchar();
-  lexer_token tok;
+  LexerToken tok;
   i.init(0);
 
   tok.type = TOK_BIGINT;
@@ -239,11 +239,11 @@ unichar_t lexer::lex_number() {
   return curr_char;
 }
 
-unichar_t lexer::lex_string() {
-  lexer_token tok;
+unichar_t Lexer::lex_string() {
+  LexerToken tok;
   unichar_t quote;
   unichar_t curr_char;
-  utf8_str str;
+  Utf8String str;
   size_t last_index;
 
   tok.type = TOK_STRING;
@@ -270,9 +270,9 @@ unichar_t lexer::lex_string() {
   return this->peekchar();
 }
 
-unichar_t lexer::lex_lbracket() {
+unichar_t Lexer::lex_lbracket() {
   int lbracket_index = find_prefix_in_strv(this->current(), PUPPET_LBRACKETS);
-  lexer_token tok;
+  LexerToken tok;
   const char *before = this->current();
 
   tok.type = TOK_LBRACKET;
@@ -284,9 +284,9 @@ unichar_t lexer::lex_lbracket() {
   return this->eatstr(PUPPET_LBRACKETS[lbracket_index]);
 }
 
-unichar_t lexer::lex_rbracket() {
+unichar_t Lexer::lex_rbracket() {
   int rbracket_index = find_prefix_in_strv(this->current(), PUPPET_RBRACKETS);
-  lexer_token tok;
+  LexerToken tok;
   const char *before = this->current();
 
   tok.type = TOK_RBRACKET;
@@ -298,8 +298,8 @@ unichar_t lexer::lex_rbracket() {
   return this->eatstr(PUPPET_RBRACKETS[rbracket_index]);
 }
 
-unichar_t lexer::lex_semicolon() {
-  lexer_token tok;
+unichar_t Lexer::lex_semicolon() {
+  LexerToken tok;
 
   tok.type = TOK_SEMICOLON;
   tok.lino = this->curr_lino;
@@ -310,7 +310,7 @@ unichar_t lexer::lex_semicolon() {
   return this->peekchar();  
 }
 
-int lexer::lex_stage1() {
+int Lexer::lex_stage1() {
   if(this->status == -1) {
     return -1;
   }
@@ -353,7 +353,7 @@ int lexer::lex_stage1() {
     }
   }
 
-  lexer_token term;
+  LexerToken term;
   term.type = TOK_TERM;
   term.lino = this->curr_lino;
   term.chno = this->curr_chno;
@@ -362,15 +362,15 @@ int lexer::lex_stage1() {
   return this->status;
 }
 
-int lexer::lex() {
+int Lexer::lex() {
   int status = this->lex_stage1();
   return status;
 }
 
-int lexer::init(const char *source) {
+int Lexer::init(const char *source) {
   this->curr_lino = 1;
   this->curr_chno = 1;
-  this->token_queue = vector<lexer_token>();
+  this->token_queue = vector<LexerToken>();
   this->logger.init();
   this->status = this->data.construct_from_bytes(source);
   if(this->status < 0) {

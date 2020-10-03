@@ -3,7 +3,13 @@
 
 #if defined(_WIN32)
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #define PUPPET_SLEEP(x) Sleep(x)
 
 #else
@@ -51,5 +57,18 @@ struct PuppetPipedProcess {
   void free_output();
 };
 
+struct PuppetSession {
+  #if defined(_WIN32)
+  SOCKET sock;
+  #else
+  int sock;
+  #endif
+
+  int start_session(const char *local_addr);
+  void close();
+};
+
+
+int puppet_init();
 
 #endif

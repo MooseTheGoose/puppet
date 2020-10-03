@@ -1,9 +1,13 @@
 #include "puppet_os.hpp"
+#include <mpir.h>
+#include <gc.h>
 
 #include <vector>
 #include <string>
 using std::vector;
 using std::string;
+
+#include <stdio.h>
 
 /*
  *  TODO: Command line logic for UNIX-like systems is the
@@ -294,3 +298,28 @@ void PuppetPipedProcess::free_output() {
   }
 }
 
+/*
+ *  GC_INIT() must be called in main, and not a dynamic library.
+ *  I think this call is necessary on Windows.
+ *  This presents an obvious problem, since this is a dynamic library.
+ *  It's a conservative garbage collector anyways, so it was going
+ *  to get the boot, but it's getting the boot sooner than I thought.
+ *
+ *  :(
+ */
+int puppet_init() {
+  int status = 0;
+
+  #if defined (_WIN32)
+  WSADATA wsaData;
+  status = WSAStartup(MAKEWORD(2,2), &wsaData);
+  if(status || LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
+    if(!status) {
+      fprintf(stderr, "ERROR: could not find Winsock 2.2 DLL\r\n");
+    }
+    status = -1;
+  }
+  #endif
+
+  return status;
+}

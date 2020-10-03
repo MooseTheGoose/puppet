@@ -1,23 +1,25 @@
 #include "puppet_types.hpp"
 #include "webdrivers.hpp"
 #include "lexer.hpp"
+#include "parser.hpp"
 #include "puppet_os.hpp"
 #include <stdlib.h>
 #include <locale.h>
 
 int main(int argc, const char *argv[]) {
-  lexer lxr;
+  Lexer lxr;
+  Parser prsr;
   setlocale(LC_ALL, "");
 
-  lxr.init("THIS IS THE BEST PROGRAMMING LANGUAGE TO FIND - SEND 0x123 TO ALL");
-  if(!lxr.lex()) {
-    for(size_t i = 0; lxr.token_queue[i].type != TOK_TERM; i++) {
-      lexer_token t = lxr.token_queue[i];
+  lxr.init("{ my_first: 0x1234, data: 0x5678}");
+  if (!lxr.lex()) {
+    for (size_t i = 0; lxr.token_queue[i].type != TOK_TERM; i++) {
+      LexerToken t = lxr.token_queue[i];
       printf("TYPE: %d\r\n", t.type);
       printf("LINE #: %d\r\n", t.lino);
       printf("CHAR #: %d\r\n", t.chno);
 
-      switch(t.type) {
+      switch (t.type) {
         case TOK_KEYWORD:
           printf("KEYWORD: %s\r\n", PUPPET_KEYWORDS[t.keyword]);
           break;
@@ -41,9 +43,10 @@ int main(int argc, const char *argv[]) {
           break;
       }
     }
+    DerivationTree *root = prsr.parse(lxr.token_queue.data());
+
   } else {
     printf("%s\r\n", lxr.logger.output.data());
   }
-
   return 0;
 }
